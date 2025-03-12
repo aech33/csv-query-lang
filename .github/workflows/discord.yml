@@ -8,6 +8,6 @@ jobs:
       - name: Send Discord Notification
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK: ${{ secrets.https://discord.com/api/webhooks/1349068521526788180/bfhxCGZWf46M9VyaRkB7wtlwnX4zvlsOYZ_O8ACPUdrH4WVhS4LAm5L1rzMJnGAnbTu_ }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: "New update in the repository! 🚀"
