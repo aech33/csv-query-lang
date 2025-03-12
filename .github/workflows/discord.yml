@@ -1,5 +1,11 @@
 name: GitHub to Discord
-on: [push, pull_request]
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, closed]
 
 jobs:
   discordNotify:
@@ -10,4 +16,8 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
-          args: "New update in the repository! 🚀"
+          args: |
+            📢 **GitHub Update**  
+            **Branch:** ${{ github.ref_name }}  
+            **Commit by:** ${{ github.actor }}  
+            **Commit message:** ${{ github.event.head_commit.message }}  
