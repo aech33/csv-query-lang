@@ -7,6 +7,13 @@ module Lexer (
 ) where
 
 import Data.Char (isSpace)
+
+-- Task notes:
+-- Task 1 (Cartesian Product): SELECT * FROM A CROSS JOIN B
+-- Task 2 (Permutation, Drop, Matching): SELECT A.3, A.1 FROM A WHERE A.1 = A.2
+-- Task 3 (Existence Check): SELECT A.1, A.2 FROM A WHERE A.2 IS NOT EMPTY
+-- Task 4 (Copying Constants): SELECT A.1, "foo", A.1 FROM A
+-- Task 5 (Left Merge): SELECT P.1, COALESCE(P.2, Q.2), COALESCE(P.3, Q.3), COALESCE(P.4, Q.4) FROM P LEFT JOIN Q ON P.1 = Q.1
 }
 
 %wrapper "posn"
@@ -14,15 +21,7 @@ import Data.Char (isSpace)
 $digit = 0-9
 $alpha = [a-zA-Z]
 $alphanum = [a-zA-Z0-9]
-{-
-Task 1 (Cartesian Product): SELECT * FROM A CROSS JOIN B
-Task 2 (Permutation, Drop, Matching): SELECT A.3, A.1 FROM A WHERE A.1 = A.2
-Task 3 (Existence Check): SELECT A.1, A.2 FROM A WHERE A.2 IS NOT EMPTY
-Task 4 (Copying Constants): SELECT A.1, "foo", A.1 FROM A
-Task 5 (Left Merge): SELECT P.1, COALESCE(P.2, Q.2), COALESCE(P.3, Q.3), COALESCE(P.4, Q.4) FROM P LEFT JOIN Q ON P.1 = Q.1
-Note we could also add explicit order by; if not ordering will be handled in interpreter
-or we could also add Group
--}
+
 tokens :-
   $white+                       ;  -- ignore whitespace
   "--".*                        ;  -- ignore comments
@@ -69,7 +68,6 @@ tokens :-
   \,                            { \p s -> TComma (getPos p) }
   \(                            { \p s -> TLParen (getPos p) }
   \)                            { \p s -> TRParen (getPos p) }
-  \;                            { \p s -> TSemicolon (getPos p) }
   \.                            { \p s -> TDot (getPos p) } --member access operator like A.1
   \*                            { \p s -> TStar (getPos p) } --to select all
   \|                            { \p s -> TPipe (getPos p) }

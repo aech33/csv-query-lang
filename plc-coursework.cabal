@@ -25,7 +25,9 @@ source-repository head
 
 library
   exposed-modules:
+      Lexer
       Lib
+      Parser
   other-modules:
       Paths_plc_coursework
   autogen-modules:
