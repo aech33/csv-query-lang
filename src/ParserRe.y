@@ -1,12 +1,13 @@
 {
 module ParserRe (
-  parseQuery,
+ parseQuery,
   Program(..),
   RelAlgExpr(..),
   ProjectItem(..),
   TableCol(..),
   Condition(..),
-  CompOp(..)
+  CompOp(..),
+  ColExpr(..)  
 ) where
 
 import LexerRe

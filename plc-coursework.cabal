@@ -25,9 +25,12 @@ source-repository head
 
 library
   exposed-modules:
+      CSVHandler
+      Interpreter
       LexerRe
       Lib
       ParserRe
+      RelationalOps
   other-modules:
       Paths_plc_coursework
   autogen-modules:
@@ -38,6 +41,7 @@ library
   build-depends:
       array
     , base >=4.7 && <5
+    , containers
   default-language: Haskell2010
   build-tool-depends:
     alex:alex,
@@ -55,6 +59,7 @@ executable plc-coursework-exe
   build-depends:
       array
     , base >=4.7 && <5
+    , containers
     , plc-coursework
   default-language: Haskell2010
 
@@ -71,5 +76,6 @@ test-suite plc-coursework-test
   build-depends:
       array
     , base >=4.7 && <5
+    , containers
     , plc-coursework
   default-language: Haskell2010
