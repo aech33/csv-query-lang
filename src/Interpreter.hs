@@ -1,7 +1,8 @@
 module Interpreter (
     evalProgram,
     evalExpr,
-    Env
+    Env,
+    InterpreterError(..)
 ) where
 
 import ParserRe
@@ -9,6 +10,17 @@ import CSVHandler
 import RelationalOps
 import Data.List (intercalate)
 import qualified Data.Map as Map
+import Control.Exception (Exception, try, SomeException, throwIO, catch)
+import System.IO.Error (isDoesNotExistError)
+
+-- Custom exception type for interpreter errors
+data InterpreterError = 
+    VariableNotFound String
+  | TableNotFound String
+  | OperationError String
+  deriving (Show)
+
+instance Exception InterpreterError
 
 -- Environment to store variable bindings
 type Env = Map.Map String Relation
@@ -21,35 +33,54 @@ evalProgram prog = evalProgram' prog Map.empty
 evalProgram' :: Program -> Env -> IO Relation
 evalProgram' (SingleExpr expr) env = evalExpr env expr
 evalProgram' (LetExpr var expr rest) env = do
-    relValue <- evalExpr env expr
-    let newEnv = Map.insert var relValue env
-    evalProgram' rest newEnv
+    relValueResult <- try (evalExpr env expr) :: IO (Either SomeException Relation)
+    case relValueResult of
+        Left err -> throwIO $ OperationError $ "Error in let binding for " ++ var ++ ": " ++ show err
+        Right relValue -> do
+            let newEnv = Map.insert var relValue env
+            evalProgram' rest newEnv
 
 -- Evaluate a relational algebra expression
 evalExpr :: Env -> RelAlgExpr -> IO Relation
 evalExpr env expr = case expr of
-    Table name -> loadTable name
+    Table name -> do
+        result <- try (loadTable name) :: IO (Either SomeException Relation)
+        case result of
+            Left err -> throwIO $ TableNotFound $ "Table not found: " ++ name ++ " (" ++ show err ++ ")"
+            Right rel -> return rel
+    
     VarRef var -> case Map.lookup var env of
                     Just rel -> return rel
-                    Nothing -> error $ "Variable not found: " ++ var
+                    Nothing -> throwIO $ VariableNotFound $ "Variable not found: " ++ var
     
     Project items subExpr -> do
         rel <- evalExpr env subExpr
-        return $ projectRelation items rel
+        result <- try (return $ projectRelation items rel) :: IO (Either SomeException Relation)
+        case result of
+            Left err -> throwIO $ OperationError $ "Projection error: " ++ show err
+            Right projectedRel -> return projectedRel
     
     Select cond subExpr -> do
         rel <- evalExpr env subExpr
-        return $ selectRelation cond rel
+        result <- try (return $ selectRelation cond rel) :: IO (Either SomeException Relation)
+        case result of
+            Left err -> throwIO $ OperationError $ "Selection error: " ++ show err
+            Right selectedRel -> return selectedRel
     
     CartesianProduct exprs -> do
-        rels <- mapM (evalExpr env) exprs
-        return $ cartesianProduct rels
+        relsResult <- try (mapM (evalExpr env) exprs) :: IO (Either SomeException [Relation])
+        case relsResult of
+            Left err -> throwIO $ OperationError $ "Cartesian product error: " ++ show err
+            Right rels -> return $ cartesianProduct rels
     
     Join cond expr1 expr2 -> do
         rel1 <- evalExpr env expr1
         rel2 <- evalExpr env expr2
         let cart = cartesianProduct [rel1, rel2]
-        return $ selectRelation cond cart
+        result <- try (return $ selectRelation cond cart) :: IO (Either SomeException Relation)
+        case result of
+            Left err -> throwIO $ OperationError $ "Join error: " ++ show err
+            Right joinedRel -> return joinedRel
     
     Rename oldName newName subExpr -> do
         rel <- evalExpr env subExpr
@@ -58,17 +89,26 @@ evalExpr env expr = case expr of
     Union expr1 expr2 -> do
         rel1 <- evalExpr env expr1
         rel2 <- evalExpr env expr2
-        -- Simple union (assumes compatible schemas)
-        return $ rel1 ++ rel2
+        -- Verify the schemas are compatible (same number of columns)
+        if not (null rel1) && not (null rel2) && length (head rel1) /= length (head rel2) then
+            throwIO $ OperationError $ "Union error: Relations have incompatible schemas"
+        else
+            return $ rel1 ++ rel2
     
     Difference expr1 expr2 -> do
         rel1 <- evalExpr env expr1
         rel2 <- evalExpr env expr2
-        -- Simple difference (keeps rows from rel1 that don't appear in rel2)
-        return $ filter (`notElem` rel2) rel1
+        -- Verify the schemas are compatible
+        if not (null rel1) && not (null rel2) && length (head rel1) /= length (head rel2) then
+            throwIO $ OperationError $ "Difference error: Relations have incompatible schemas"
+        else
+            return $ filter (`notElem` rel2) rel1
     
     Intersect expr1 expr2 -> do
         rel1 <- evalExpr env expr1
         rel2 <- evalExpr env expr2
-        -- Simple intersection (keeps rows that appear in both relations)
-        return $ filter (`elem` rel2) rel1
+        -- Verify the schemas are compatible
+        if not (null rel1) && not (null rel2) && length (head rel1) /= length (head rel2) then
+            throwIO $ OperationError $ "Intersection error: Relations have incompatible schemas"
+        else
+            return $ filter (`elem` rel2) rel1

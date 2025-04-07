@@ -5,12 +5,22 @@ module RelationalOps (
     renameColumn,
     evaluateProjectItem,
     evaluateCondition,
-    evalColExpr
+    evalColExpr,
+    RelOpError(..)
 ) where
 
 import ParserRe
 import CSVHandler (Relation, trim)
 import Data.List (intercalate)
+import Control.Exception (Exception, throw)
+
+-- Define custom exception types for relational operations
+data RelOpError = 
+    ColumnOutOfBounds Int Int  -- requested column index, max column index
+  | InvalidColumnReference String
+  deriving (Show)
+
+instance Exception RelOpError
 
 -- Project specified columns from a relation
 projectRelation :: [ProjectItem] -> Relation -> Relation
@@ -21,15 +31,16 @@ projectRelation items relation =
 -- Evaluate a projection item against a row
 evaluateProjectItem :: ProjectItem -> Relation -> [String] -> String
 evaluateProjectItem item relation row = case item of
-    Col (TableCol _ n)          -> if n <= length row && n > 0 
-                                   then row !! (n-1) 
-                                   else ""
-    Const str                   -> str
-    Star                        -> intercalate "," row
-    Coalesce item1 item2        -> let val1 = evaluateProjectItem item1 relation row
-                                   in if val1 /= "" 
-                                      then val1 
-                                      else evaluateProjectItem item2 relation row
+    Col (TableCol _ n) -> if n <= length row && n > 0 
+                          then row !! (n-1)
+                          else throw $ ColumnOutOfBounds n (length row)
+    Const str -> str
+    Star -> intercalate "," row
+    Coalesce item1 item2 -> 
+        let val1 = evaluateProjectItem item1 relation row
+        in if val1 /= "" 
+           then val1 
+           else evaluateProjectItem item2 relation row
 
 -- Select rows from a relation based on a condition
 selectRelation :: Condition -> Relation -> Relation
@@ -41,28 +52,28 @@ evaluateCondition cond relation row = case cond of
     Compare op expr1 expr2 -> compareValues op 
                               (evalColExpr expr1 relation row)
                               (evalColExpr expr2 relation row)
-    IsEmpty expr          -> evalColExpr expr relation row == ""
-    IsNotEmpty expr       -> evalColExpr expr relation row /= ""
-    And cond1 cond2       -> evaluateCondition cond1 relation row && 
-                             evaluateCondition cond2 relation row
-    Or cond1 cond2        -> evaluateCondition cond1 relation row || 
-                             evaluateCondition cond2 relation row
-    Not innerCond         -> not (evaluateCondition innerCond relation row)
+    IsEmpty expr -> evalColExpr expr relation row == ""
+    IsNotEmpty expr -> evalColExpr expr relation row /= ""
+    And cond1 cond2 -> evaluateCondition cond1 relation row && 
+                       evaluateCondition cond2 relation row
+    Or cond1 cond2 -> evaluateCondition cond1 relation row || 
+                      evaluateCondition cond2 relation row
+    Not innerCond -> not (evaluateCondition innerCond relation row)
 
 -- Evaluate a column expression to get its value
 evalColExpr :: ColExpr -> Relation -> [String] -> String
 evalColExpr expr relation row = case expr of
     ColRef (TableCol _ n) -> if n <= length row && n > 0 
                             then row !! (n-1) 
-                            else ""
-    ConstVal str         -> str
+                            else throw $ ColumnOutOfBounds n (length row)
+    ConstVal str -> str
 
 -- Compare values based on the comparison operator
 compareValues :: CompOp -> String -> String -> Bool
 compareValues op val1 val2 = case op of
-    Eq  -> val1 == val2
-    Lt  -> val1 < val2
-    Gt  -> val1 > val2
+    Eq -> val1 == val2
+    Lt -> val1 < val2
+    Gt -> val1 > val2
     Lte -> val1 <= val2
     Gte -> val1 >= val2
     Neq -> val1 /= val2

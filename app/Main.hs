@@ -1,7 +1,6 @@
 module Main where
 
 import System.Environment (getArgs)
-import System.IO
 import System.Exit (exitFailure)
 import Control.Exception (catch, SomeException)
 
@@ -9,6 +8,7 @@ import ParserRe
 import LexerRe
 import CSVHandler
 import Interpreter
+import RelationalOps
 
 -- Main entry point
 main :: IO ()
@@ -25,10 +25,28 @@ processQueryFile :: FilePath -> IO ()
 processQueryFile queryFile = do
     putStrLn $ "Processing query file: " ++ queryFile
     queryStr <- readFile queryFile
-    processQuery queryStr `catch` handleError
+    processQuery queryStr `catch` handleCSVError
+                         `catch` handleRelOpError
+                         `catch` handleInterpreterError
+                         `catch` handleGenericError
     where
-        handleError :: SomeException -> IO ()
-        handleError e = do
+        handleCSVError :: CSVError -> IO ()
+        handleCSVError e = do
+            putStrLn $ "CSV Error: " ++ show e
+            exitFailure
+            
+        handleRelOpError :: RelOpError -> IO ()
+        handleRelOpError e = do
+            putStrLn $ "Relational Operation Error: " ++ show e
+            exitFailure
+            
+        handleInterpreterError :: InterpreterError -> IO ()
+        handleInterpreterError e = do
+            putStrLn $ "Interpreter Error: " ++ show e
+            exitFailure
+            
+        handleGenericError :: SomeException -> IO ()
+        handleGenericError e = do
             putStrLn $ "Error: " ++ show e
             exitFailure
 
@@ -46,7 +64,6 @@ processQuery queryStr = do
     
     writeCSV "output.csv" result
     putStrLn "Results written to output.csv"
-
 -- For testing in GHCI
 runQuery :: String -> IO ()
 runQuery queryStr = processQuery queryStr
