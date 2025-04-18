@@ -17,7 +17,7 @@ import System.IO.Error (isDoesNotExistError)
 data InterpreterError = 
     VariableNotFound String
   | TableNotFound String
-  | OperationError String
+  | InterpreterOperationError String  -- Renamed from OperationError
   deriving (Show)
 
 instance Exception InterpreterError
@@ -35,7 +35,7 @@ evalProgram' (SingleExpr expr) env = evalExpr env expr
 evalProgram' (LetExpr var expr rest) env = do
     relValueResult <- try (evalExpr env expr) :: IO (Either SomeException Relation)
     case relValueResult of
-        Left err -> throwIO $ OperationError $ "Error in let binding for " ++ var ++ ": " ++ show err
+        Left err -> throwIO $ InterpreterOperationError $ "Error in let binding for " ++ var ++ ": " ++ show err
         Right relValue -> do
             let newEnv = Map.insert var relValue env
             evalProgram' rest newEnv
@@ -57,29 +57,30 @@ evalExpr env expr = case expr of
         rel <- evalExpr env subExpr
         result <- try (return $ projectRelation items rel) :: IO (Either SomeException Relation)
         case result of
-            Left err -> throwIO $ OperationError $ "Projection error: " ++ show err
+            Left err -> throwIO $ InterpreterOperationError $ "Projection error: " ++ show err
             Right projectedRel -> return projectedRel
-    
+        
     Select cond subExpr -> do
         rel <- evalExpr env subExpr
         result <- try (return $ selectRelation cond rel) :: IO (Either SomeException Relation)
         case result of
-            Left err -> throwIO $ OperationError $ "Selection error: " ++ show err
+            Left err -> throwIO $ InterpreterOperationError $ "Selection error: " ++ show err
             Right selectedRel -> return selectedRel
     
     CartesianProduct exprs -> do
-        relsResult <- try (mapM (evalExpr env) exprs) :: IO (Either SomeException [Relation])
-        case relsResult of
-            Left err -> throwIO $ OperationError $ "Cartesian product error: " ++ show err
-            Right rels -> return $ cartesianProduct rels
-    
+        if length exprs < 2 then
+            throwIO $ InterpreterOperationError "Cartesian product requires at least two relations"
+        else do
+            rels <- mapM (evalExpr env) exprs
+            return $ cartesianProduct rels
+
     Join cond expr1 expr2 -> do
         rel1 <- evalExpr env expr1
         rel2 <- evalExpr env expr2
         let cart = cartesianProduct [rel1, rel2]
         result <- try (return $ selectRelation cond cart) :: IO (Either SomeException Relation)
         case result of
-            Left err -> throwIO $ OperationError $ "Join error: " ++ show err
+            Left err -> throwIO $ InterpreterOperationError $ "Join error: " ++ show err
             Right joinedRel -> return joinedRel
     
     Rename oldName newName subExpr -> do
@@ -91,7 +92,7 @@ evalExpr env expr = case expr of
         rel2 <- evalExpr env expr2
         -- Verify the schemas are compatible (same number of columns)
         if not (null rel1) && not (null rel2) && length (head rel1) /= length (head rel2) then
-            throwIO $ OperationError $ "Union error: Relations have incompatible schemas"
+            throwIO $ InterpreterOperationError $ "Union error: Relations have incompatible schemas"
         else
             return $ rel1 ++ rel2
     
@@ -100,7 +101,7 @@ evalExpr env expr = case expr of
         rel2 <- evalExpr env expr2
         -- Verify the schemas are compatible
         if not (null rel1) && not (null rel2) && length (head rel1) /= length (head rel2) then
-            throwIO $ OperationError $ "Difference error: Relations have incompatible schemas"
+            throwIO $ InterpreterOperationError $ "Difference error: Relations have incompatible schemas"
         else
             return $ filter (`notElem` rel2) rel1
     
@@ -109,6 +110,6 @@ evalExpr env expr = case expr of
         rel2 <- evalExpr env expr2
         -- Verify the schemas are compatible
         if not (null rel1) && not (null rel2) && length (head rel1) /= length (head rel2) then
-            throwIO $ OperationError $ "Intersection error: Relations have incompatible schemas"
+            throwIO $ InterpreterOperationError $ "Intersection error: Relations have incompatible schemas"
         else
             return $ filter (`elem` rel2) rel1

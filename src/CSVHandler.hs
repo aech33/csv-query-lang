@@ -87,14 +87,22 @@ processLine expectedCols line =
     let rawFields = splitLine line
         trimmedFields = map trim rawFields
         numFields = length trimmedFields
-    in if numFields < expectedCols
-       then trimmedFields ++ replicate (expectedCols - numFields) ""  -- Pad with empty strings
-       else take expectedCols trimmedFields  -- Truncate if too many fields
-
+    in if numFields /= expectedCols then
+           error $ "Inconsistent column count: expected " ++ show expectedCols ++
+                   " columns, but found " ++ show numFields
+       else
+           trimmedFields
+           
+-- Split a line by commas
 -- Split a line by commas
 splitLine :: String -> [String]
 splitLine "" = [""]  -- Empty string becomes a single empty field
-splitLine s = splitByComma s []
+splitLine s = 
+    -- Special handling for trailing commas
+    let result = splitByComma s []
+        -- If input ends with comma, add empty field
+        finalResult = if last s == ',' then result ++ [""] else result
+    in finalResult
   where
     splitByComma :: String -> [String] -> [String]
     splitByComma "" acc = reverse acc  -- End of string, reverse accumulated fields
@@ -102,7 +110,7 @@ splitLine s = splitByComma s []
       case break (== ',') s of
         (field, "")   -> reverse (field : acc)  -- Last field
         (field, rest) -> splitByComma (drop 1 rest) (field : acc)  -- More fields follow
-
+        
 -- Load a table by name (e.g., "A" loads "A.csv")
 loadTable :: String -> IO Relation
 loadTable tableName = readCSV (tableName ++ ".csv")

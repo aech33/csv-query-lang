@@ -13,27 +13,44 @@ import ParserRe
 import CSVHandler (Relation, trim)
 import Data.List (intercalate)
 import Control.Exception (Exception, throw)
+import Debug.Trace (trace)
 
--- Define custom exception types for relational operations
 data RelOpError = 
-    ColumnOutOfBounds Int Int  -- requested column index, max column index
+    ColumnOutOfBounds Int Int String  -- requested column index, max column index, operation context
   | InvalidColumnReference String
+  | OperationError String
   deriving (Show)
 
 instance Exception RelOpError
 
--- Project specified columns from a relation
+
 projectRelation :: [ProjectItem] -> Relation -> Relation
 projectRelation items relation = 
-    -- For each row in the relation, create a new row by evaluating each projection item
-    map (\row -> map (\item -> evaluateProjectItem item relation row) items) relation
-
+    let 
+        -- Get max columns from schema or throw error if relation is empty
+        maxCols = if null relation 
+                 then throw $ OperationError "Cannot project empty relation with column references"
+                 else length (head relation)
+        
+        -- Validate all items regardless of row count
+        validateItem (Col (TableCol _ n)) = 
+            if n <= 0 || n > maxCols then
+                throw $ ColumnOutOfBounds n maxCols "in validateItem"
+            else True
+        validateItem _ = True
+    in
+    -- Only proceed if validation passes
+    if all validateItem items
+    then map (\row -> map (\item -> evaluateProjectItem item relation row) items) relation
+    else []
+           
 -- Evaluate a projection item against a row
 evaluateProjectItem :: ProjectItem -> Relation -> [String] -> String
 evaluateProjectItem item relation row = case item of
-    Col (TableCol _ n) -> if n <= length row && n > 0 
-                          then row !! (n-1)
-                          else throw $ ColumnOutOfBounds n (length row)
+    Col (TableCol _ n) -> 
+        if n <= 0 || n > length row 
+        then throw $ ColumnOutOfBounds n (length row) "in evaluateProjectItem"
+        else row !! (n-1)
     Const str -> str
     Star -> intercalate "," row
     Coalesce item1 item2 -> 
@@ -65,7 +82,7 @@ evalColExpr :: ColExpr -> Relation -> [String] -> String
 evalColExpr expr relation row = case expr of
     ColRef (TableCol _ n) -> if n <= length row && n > 0 
                             then row !! (n-1) 
-                            else throw $ ColumnOutOfBounds n (length row)
+                            else throw $ ColumnOutOfBounds n (length row) "in evalColExpr"
     ConstVal str -> str
 
 -- Compare values based on the comparison operator
@@ -89,3 +106,11 @@ cartesianProduct (rel:rels) =
 -- just how we refer to it in subsequent operations)
 renameColumn :: String -> String -> Relation -> Relation
 renameColumn _ _ relation = relation  -- For now, just pass through as we don't track column names
+
+validateColumnReference :: Int -> Relation -> ()
+validateColumnReference colNum relation =
+    let maxCols = if null relation then 0 else length (head relation)
+    in if colNum <= 0 || colNum > maxCols 
+       then error $ "Column reference error: Requested column " ++ show colNum ++ 
+                   " but relation only has " ++ show maxCols ++ " columns"
+       else ()
