@@ -19,9 +19,23 @@ data RelOpError =
     ColumnOutOfBounds Int Int String  -- requested column index, max column index, operation context
   | InvalidColumnReference String
   | OperationError String
-  deriving (Show)
+  deriving (Eq)  
 
 instance Exception RelOpError
+
+instance Show RelOpError where
+  show (ColumnOutOfBounds col maxCol context) = 
+    "Column reference error " ++ context ++ ": Column " ++ show col ++ 
+    " is out of bounds (valid columns are 1 to " ++ show maxCol ++ "). " ++
+    "Check that your column references match the schema of your data."
+  
+  show (InvalidColumnReference msg) = 
+    "Invalid column reference: " ++ msg ++ 
+    ". Ensure column references use valid table names and column indices."
+  
+  show (OperationError msg) = 
+    "Operation error: " ++ msg ++
+    ". This usually happens when an operation cannot be performed on the given data."
 
 
 projectRelation :: [ProjectItem] -> Relation -> Relation

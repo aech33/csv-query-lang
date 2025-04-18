@@ -17,10 +17,23 @@ import System.IO.Error (isDoesNotExistError)
 data InterpreterError = 
     VariableNotFound String
   | TableNotFound String
-  | InterpreterOperationError String  -- Renamed from OperationError
-  deriving (Show)
+  | InterpreterOperationError String
+  deriving (Eq) 
 
 instance Exception InterpreterError
+
+instance Show InterpreterError where
+  show (VariableNotFound var) = 
+    "Variable '" ++ var ++ "' is not defined. " ++
+    "Make sure you define it with a 'let' statement before using it."
+  
+  show (TableNotFound table) = 
+    "Table '" ++ table ++ "' not found. " ++
+    "Ensure that a file named '" ++ table ++ ".csv' exists in the current directory."
+  
+  show (InterpreterOperationError msg) = 
+    "Error during query execution: " ++ msg ++ 
+    ". Check your query syntax and ensure your operations are valid for the given data."
 
 -- Environment to store variable bindings
 type Env = Map.Map String Relation

@@ -13,14 +13,29 @@ import Data.Char (isSpace)
 import Control.Exception (Exception, throwIO, try, IOException)
 import Debug.Trace (trace)
 
--- Define custom exception types for CSV operations
+-- custom exception types for CSV operations
 data CSVError = 
     InconsistentColumnCount FilePath Int Int  -- FilePath, expected count, actual count
   | FileNotFound FilePath
   | EmptyCSVFile FilePath
-  deriving (Show)
+  deriving (Eq)  
+
+instance Show CSVError where
+  show (InconsistentColumnCount file expected actual) = 
+    "CSV format error in file '" ++ file ++ "': " ++
+    "Expected " ++ show expected ++ " columns, but found " ++ show actual ++ " columns. " ++
+    "Ensure all rows in your CSV have the same number of columns, separated by commas."
+  
+  show (FileNotFound file) = 
+    "File not found: '" ++ file ++ "'. " ++
+    "Check that the file exists and is accessible from the current directory."
+  
+  show (EmptyCSVFile file) = 
+    "Empty CSV file: '" ++ file ++ "'. " ++
+    "The file exists but contains no data. Make sure your CSV file has content."
 
 instance Exception CSVError
+
 
 -- A relation is a list of rows, each row is a list of string values
 type Relation = [[String]]

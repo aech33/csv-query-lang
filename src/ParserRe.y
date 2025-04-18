@@ -11,6 +11,8 @@ module ParserRe (
 ) where
 
 import LexerRe
+
+
 }
 
 %name parseQuery
@@ -142,13 +144,68 @@ CompOp : '='                                  { Eq }
        | '!='                                 { Neq }
 
 {
--- Parse error handling
+
+showPos :: Pos -> String
+showPos (Pos line col) = "line " ++ show line ++ ", column " ++ show col
+
+-- Helper function to show token in a human-readable way
+showToken :: Token -> String
+showToken (TProject _)       = "project keyword"
+showToken (TSelect _)        = "select keyword"
+showToken (TCartesian _)     = "cartesian keyword"
+showToken (TJoin _)          = "join keyword"
+showToken (TRename _)        = "rename keyword"
+showToken (TUnion _)         = "union keyword"
+showToken (TDifference _)    = "difference keyword"
+showToken (TIntersect _)     = "intersect keyword"
+showToken (TCol _)           = "col function"
+showToken (TCoalesce _)      = "coalesce function"
+showToken (TStar _)          = "star (*)"
+showToken (TLet _)           = "let keyword"
+showToken (TIn _)            = "in keyword"
+showToken (TEmpty _)         = "empty function"
+showToken (TNotEmpty _)      = "notEmpty function"
+showToken (TAnd _)           = "and operator"
+showToken (TOr _)            = "or operator"
+showToken (TNot _)           = "not operator"
+showToken (TIdent _ s)       = "identifier '" ++ s ++ "'"
+showToken (TString _ s)      = "string \"" ++ s ++ "\""
+showToken (TInteger _ n)     = "integer " ++ show n
+showToken (TEquals _)        = "equals operator (=)"
+showToken (TLessThan _)      = "less than operator (<)"
+showToken (TGreaterThan _)   = "greater than operator (>)"
+showToken (TLessThanEq _)    = "less than or equal operator (<=)"
+showToken (TGreaterThanEq _) = "greater than or equal operator (>=)"
+showToken (TNotEquals _)     = "not equals operator (!=)"
+showToken (TComma _)         = "comma (,)"
+showToken (TSemicolon _)     = "semicolon (;)"
+showToken (TLParen _)        = "left parenthesis ('(')"
+showToken (TRParen _)        = "right parenthesis (')')"
+showToken (TLBracket _)      = "left bracket ('[')"
+showToken (TRBracket _)      = "right bracket (']')"
+showToken (TDot _)           = "dot (.)"
+showToken (TArrow _)         = "arrow (->)"
+
 parseError :: [Token] -> a
 parseError tokens = error $ case tokens of
-  [] -> "Parse error at end of input"
-  (t:_) -> "Parse error at " ++ showPos (tokenPos t)
-  where
-    showPos (Pos line col) = "line " ++ show line ++ ", column " ++ show col
+  [] -> "Parse error: Unexpected end of input. Your query might be incomplete."
+  
+  (TInteger p n : ts) | n <= 0 -> 
+    "Parse error at " ++ showPos p ++ ": Column indices must be positive. Found: " ++ show n
+  
+  (TRParen p : _) -> 
+    "Parse error at " ++ showPos p ++ ": Unexpected right parenthesis ')'. Check for mismatched parentheses."
+  
+  (TRBracket p : _) -> 
+    "Parse error at " ++ showPos p ++ ": Unexpected right bracket ']'. Check for mismatched brackets."
+  
+  (TIdent p name : _) | isUpper (head name) && length name > 1 ->
+    "Parse error at " ++ showPos p ++ ": Table names should be single uppercase letters (e.g., 'A', 'B')."
+    
+  (t:_) -> 
+    "Parse error at " ++ showPos (tokenPos t) ++ ": Unexpected " ++ showToken t ++ ". " ++
+    "Check your syntax and ensure your expressions are properly formed."
+
 
 -- Helper function to check if a string starts with an uppercase letter
 isUpper :: Char -> Bool
