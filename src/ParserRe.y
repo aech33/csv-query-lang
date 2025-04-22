@@ -34,6 +34,7 @@ import LexerRe
   union       { TUnion _ }
   difference  { TDifference _ }
   intersect   { TIntersect _ }
+  merge       { TMerge _ }
   col         { TCol _ }
   coalesce    { TCoalesce _ }
   star        { TStar _ }
@@ -77,6 +78,7 @@ Expr : TableRef                       { $1 }
      | UnionExpr                      { $1 }
      | DifferenceExpr                 { $1 }
      | IntersectExpr                  { $1 }
+     | MergeExpr                      { $1 }
      | '(' Expr ')'                   { $2 }
 
 -- Simple table reference or variable reference
@@ -106,9 +108,12 @@ DifferenceExpr : difference '(' Expr ',' Expr ')'  { Difference $3 $5 }
 -- Intersection operation: intersect(expr1, expr2)
 IntersectExpr : intersect '(' Expr ',' Expr ')'  { Intersect $3 $5 }
 
--- List of expressions for n-ary operations
-ExprList : Expr                   { [$1] }
-         | Expr ',' ExprList      { $1 : $3 }
+-- Merge operation: merge(expr1, expr2)
+MergeExpr : merge '(' Expr ',' Expr ')'  { Merge $3 $5 }
+
+-- List of expressions for cartesian product
+ExprList : Expr                          { [$1] }
+          | ExprList ',' Expr            { $1 ++ [$3] }
 
 -- Items to project
 ProjectItems : ProjectItem                    { [$1] }
@@ -158,6 +163,7 @@ showToken (TRename _)        = "rename keyword"
 showToken (TUnion _)         = "union keyword"
 showToken (TDifference _)    = "difference keyword"
 showToken (TIntersect _)     = "intersect keyword"
+showToken (TMerge _)         = "merge keyword"
 showToken (TCol _)           = "col function"
 showToken (TCoalesce _)      = "coalesce function"
 showToken (TStar _)          = "star (*)"
@@ -229,6 +235,7 @@ data RelAlgExpr
   | Union RelAlgExpr RelAlgExpr               -- Union (∪)
   | Difference RelAlgExpr RelAlgExpr          -- Difference (-)
   | Intersect RelAlgExpr RelAlgExpr           -- Intersection (∩)
+  | Merge RelAlgExpr RelAlgExpr               -- Merge operation (⨝)
   deriving (Show, Eq)
 
 -- Projection items

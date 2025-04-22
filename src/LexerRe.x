@@ -28,6 +28,7 @@ tokens :-
   "union"                       { \p s -> TUnion (getPos p) }
   "difference"                  { \p s -> TDifference (getPos p) }
   "intersect"                   { \p s -> TIntersect (getPos p) }
+  "merge"                       { \p s -> TMerge (getPos p) }
   "col"                         { \p s -> TCol (getPos p) }
   "coalesce"                    { \p s -> TCoalesce (getPos p) }
   "star"                        { \p s -> TStar (getPos p) }
@@ -80,6 +81,7 @@ data Token
   | TUnion Pos
   | TDifference Pos
   | TIntersect Pos
+  | TMerge Pos
   | TCol Pos
   | TCoalesce Pos
   | TStar Pos

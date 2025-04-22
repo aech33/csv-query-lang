@@ -3,6 +3,7 @@ module RelationalOps (
     selectRelation,
     cartesianProduct,
     renameColumn,
+    mergeRelations,
     evaluateProjectItem,
     evaluateCondition,
     evalColExpr,
@@ -42,7 +43,7 @@ projectRelation :: [ProjectItem] -> Relation -> Relation
 projectRelation items relation = 
     let 
         -- Get max columns from schema or throw error if relation is empty
-        maxCols = if null relation 
+        maxCols = if null relation
                  then throw $ OperationError "Cannot project empty relation with column references"
                  else length (head relation)
         
@@ -51,6 +52,7 @@ projectRelation items relation =
             if n <= 0 || n > maxCols then
                 throw $ ColumnOutOfBounds n maxCols "in validateItem"
             else True
+        validateItem (Const id) = validateColumnReference id relation
         validateItem _ = True
     in
     -- Only proceed if validation passes
@@ -116,15 +118,19 @@ cartesianProduct [rel] = rel
 cartesianProduct (rel:rels) = 
     [row1 ++ row2 | row1 <- rel, row2 <- cartesianProduct rels]
 
+mergeRelations :: Relation -> Relation -> Relation
+mergeRelations rel1 rel2 = 
+    [row1 ++ row2 | (row1,row2) <- zip rel1 rel2]  -- Merge rows from both relations
+
 -- Rename a column in a relation schema (this doesn't affect the data,
 -- just how we refer to it in subsequent operations)
 renameColumn :: String -> String -> Relation -> Relation
 renameColumn _ _ relation = relation  -- For now, just pass through as we don't track column names
 
-validateColumnReference :: Int -> Relation -> ()
+validateColumnReference :: String -> Relation -> Bool
 validateColumnReference colNum relation =
     let maxCols = if null relation then 0 else length (head relation)
-    in if colNum <= 0 || colNum > maxCols 
-       then error $ "Column reference error: Requested column " ++ show colNum ++ 
-                   " but relation only has " ++ show maxCols ++ " columns"
-       else ()
+        parsedColNum = reads colNum :: [(Int, String)]
+    in case parsedColNum of
+        [(colNumInt, "")] -> True
+        _ -> error $ show (InvalidColumnReference colNum)

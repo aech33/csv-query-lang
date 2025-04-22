@@ -126,3 +126,8 @@ evalExpr env expr = case expr of
             throwIO $ InterpreterOperationError $ "Intersection error: Relations have incompatible schemas"
         else
             return $ filter (`elem` rel2) rel1
+
+    Merge expr1 expr2 -> do
+        rel1 <- evalExpr env expr1
+        rel2 <- evalExpr env expr2
+        return $ mergeRelations rel1 rel2
