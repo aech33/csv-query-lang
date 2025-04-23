@@ -1,0 +1,42 @@
+program ::= 
+  | fun_decl*
+
+fun_decl ::= 
+  | `def` id id* `:=` term 
+
+term ::= 
+  | `if` term `then` term `else` term 
+  | `fun` id `=>` term 
+  | `let` id `:=` term `in` term 
+  | `match` term `with` clause `end`
+
+  | `forall` id `:` term `=>` term 
+  | `exists` id `:` term `=>` term 
+  | `for` id `:` term `@` id+ `=>` term
+  
+  | `(` term `)`
+  | term op term
+  | id
+  | lit 
+
+op ::=
+  | ::        -- right
+  | * / %     -- left
+  | + - ++    -- left
+  | < > ==    -- nonassoc
+  | &&        -- left
+  | ||        -- left
+  | ;         -- right
+
+clause ::= 
+  | (`|` pattern `=>` term)
+
+lit ::= 
+  | integer 
+  | float
+  | string
+  | `[` list_elements `]`
+
+list_elements ::= 
+  | emp
+  | term (`,` term)*
