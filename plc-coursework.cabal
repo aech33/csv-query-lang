@@ -9,8 +9,8 @@ version:        0.1.0.0
 description:    Alex and Happy project.
 homepage:       https://github.com/githubuser/plc-coursework#readme
 bug-reports:    https://github.com/githubuser/plc-coursework/issues
-author:         Harrison Lynch
-maintainer:     hl12g23@soton.ac.uk
+author:         Harrison Lynch / Chengzi Jiang
+maintainer:     hl12g23@soton.ac.uk / cj1d22@soton.ac.uk
 copyright:      2025 Harrison Lynch
 license:        BSD-3-Clause
 license-file:   LICENSE
