@@ -52,7 +52,6 @@ projectRelation items relation =
             if n <= 0 || n > maxCols then
                 throw $ ColumnOutOfBounds n maxCols "in validateItem"
             else True
-        validateItem (Const id) = validateColumnReference id relation
         validateItem _ = True
     in
     -- Only proceed if validation passes
