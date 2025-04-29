@@ -40,12 +40,11 @@ instance Show RelOpError where
 
 
 projectRelation :: [ProjectItem] -> Relation -> Relation
+projectRelation _ [] = []  -- Return empty relation when input is empty
 projectRelation items relation = 
     let 
-        -- Get max columns from schema or throw error if relation is empty
-        maxCols = if null relation
-                 then throw $ OperationError "Cannot project empty relation with column references"
-                 else length (head relation)
+        -- Get max columns from schema
+        maxCols = length (head relation)
         
         -- Validate all items regardless of row count
         validateItem (Col (TableCol _ n)) = 
@@ -58,7 +57,7 @@ projectRelation items relation =
     if all validateItem items
     then map (\row -> map (\item -> evaluateProjectItem item relation row) items) relation
     else []
-           
+    
 -- Evaluate a projection item against a row
 evaluateProjectItem :: ProjectItem -> Relation -> [String] -> String
 evaluateProjectItem item relation row = case item of
