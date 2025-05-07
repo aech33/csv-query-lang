@@ -7,7 +7,6 @@ module CSVHandler (
     CSVError(..)
 ) where
 
-import System.IO
 import Data.List (sort)
 import Data.Char (isSpace)
 import Control.Exception (Exception, throwIO, try, IOException)
